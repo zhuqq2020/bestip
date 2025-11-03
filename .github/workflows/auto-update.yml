@@ -1,0 +1,96 @@
+name: Auto Update CF IPs
+
+on:
+  schedule:
+    - cron: '0 */24 * * *' # 每3小时运行一次
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  update-cf-ips:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y wget gnupg unzip
+        
+    - name: Install Google Chrome
+      run: |
+        wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+        echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        
+    - name: Install ChromeDriver
+      run: |
+        # 获取Chrome版本并安装匹配的ChromeDriver
+        CHROME_VERSION=$(google-chrome --version | cut -d " " -f3 | cut -d "." -f1-3)
+        echo "Chrome version: $CHROME_VERSION"
+        
+        # 使用匹配的ChromeDriver版本
+        CHROMEDRIVER_VERSION="141.0.7390.78"
+        echo "Installing ChromeDriver version: $CHROMEDRIVER_VERSION"
+        
+        # 下载ChromeDriver
+        wget -O /tmp/chromedriver.zip "https://storage.googleapis.com/chrome-for-testing-public/${CHROMEDRIVER_VERSION}/linux64/chromedriver-linux64.zip"
+        sudo unzip /tmp/chromedriver.zip -d /tmp/
+        sudo mv /tmp/chromedriver-linux64/chromedriver /usr/local/bin/
+        sudo chmod +x /usr/local/bin/chromedriver
+        
+        # 验证安装
+        chromedriver --version
+        
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Delete old workflow runs
+      uses: Mattraks/delete-workflow-runs@v2
+      with:
+        token: ${{ github.token }}
+        repository: ${{ github.repository }}
+        retain_days: 3
+        keep_minimum_runs: 4
+        
+    - name: Run CF IP automation
+      run: |
+        echo "开始执行CloudFlare IP优选测试..."
+        python cf_ip_automation.py
+        echo "CF IP automation 执行完成，退出码: $?"
+        
+    - name: Check results
+      run: |
+        if [ -f "ip.txt" ]; then
+          echo "IP文件已生成，内容预览："
+          head -20 ip.txt
+          echo "总行数："
+          wc -l ip.txt
+        else
+          echo "警告：ip.txt文件未生成"
+          exit 1
+        fi
+        
+    - name: Commit and push changes
+      run: |
+        git config --local user.email "actions@github.com"
+        git config --local user.name "GitHub Action"
+        if [ -n "$(git status --porcelain)" ]; then
+          git add ip.txt
+          git commit -m "Auto update CF IPs - $(date '+%Y-%m-%d %H:%M:%S')"
+          git push
+          echo "更改已提交并推送"
+        else
+          echo "没有检测到更改，跳过提交"
+        fi
