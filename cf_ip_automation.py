@@ -68,12 +68,13 @@ def fetch_normal():
                 ip_with_info = f"{ip}:443#{get_current_time()}_{source_domain}"
                 ip_set.add(ip_with_info)
             
-            # 提取域名
+            # 提取域名并添加端口和来源信息（不加时间）
             domains = re.findall(domain_pattern, text_all)
             for domain in domains:
                 # 过滤掉明显不是优选域名的（如常见域名）
                 if not any(common in domain.lower() for common in ['cloudflare', 'google', 'baidu', 'qq.com', 'localhost', 'example.com']):
-                    domain_set.add(domain)
+                    domain_with_info = f"{domain}:443#{source_domain}"
+                    domain_set.add(domain_with_info)
             
             print(f"✅ 普通 {url} -> {len(ips)} IP, {len(domains)} 域名")
         except Exception as e:
@@ -100,11 +101,12 @@ def fetch_api_text():
                 ip_with_info = f"{ip}:443#{get_current_time()}_{source_with_operator}"
                 ip_set.add(ip_with_info)
             
-            # 提取域名
+            # 提取域名并添加端口和来源信息（不加时间）
             domains = re.findall(domain_pattern, text)
             for domain in domains:
                 if not any(common in domain.lower() for common in ['cloudflare', 'google', 'baidu', 'qq.com', 'localhost', 'example.com']):
-                    domain_set.add(domain)
+                    domain_with_info = f"{domain}:443#{source_with_operator}"
+                    domain_set.add(domain_with_info)
             
             print(f"✅ API文本 {url} -> {len(ips)} IP, {len(domains)} 域名")
         except Exception as e:
@@ -134,7 +136,8 @@ def fetch_api_json():
                         domain = item.get("domain")
                         if domain and re.match(domain_pattern, domain):
                             if not any(common in domain.lower() for common in ['cloudflare', 'google', 'baidu', 'qq.com', 'localhost', 'example.com']):
-                                domain_set.add(domain)
+                                domain_with_info = f"{domain}:443#{source_domain}"
+                                domain_set.add(domain_with_info)
                     elif isinstance(item, str) and re.match(ip_pattern, item):
                         ip_with_info = f"{item}:443#{get_current_time()}_{source_domain}"
                         ip_set.add(ip_with_info)
@@ -160,6 +163,20 @@ def clean_and_sort_ips(ip_set):
     cleaned_ips.sort(key=lambda x: x[0])
     return [ip_info for _, ip_info in cleaned_ips]
 
+def clean_and_sort_domains(domain_set):
+    """清理和排序域名"""
+    cleaned_domains = []
+    for domain_info in domain_set:
+        # 提取纯域名用于排序
+        domain_match = re.search(domain_pattern, domain_info.split(':')[0])
+        if domain_match:
+            domain_pure = domain_match.group()
+            cleaned_domains.append((domain_pure, domain_info))
+    
+    # 按域名排序
+    cleaned_domains.sort(key=lambda x: x[0])
+    return [domain_info for _, domain_info in cleaned_domains]
+
 if __name__ == "__main__":
     ip_total, domain_total = set(), set()
 
@@ -177,23 +194,23 @@ if __name__ == "__main__":
     ip3, d3 = fetch_api_json()
     ip_total.update(ip3); domain_total.update(d3)
 
-    # 清理和排序IP
+    # 清理和排序
     sorted_ips = clean_and_sort_ips(ip_total)
-    sorted_domains = sorted(domain_total)
+    sorted_domains = clean_and_sort_domains(domain_total)
 
     # 保存结果
     with open("ip.txt", "w", encoding="utf-8") as f:
         f.write(f"# Cloudflare优选IP和域名\n")
         f.write(f"# 生成时间: {get_current_time().replace('_', ' ')}\n")
-        f.write(f"# 总计: {len(sorted_ips)} 个IP, {len(sorted_domains)} 个域名\n\n")
+        f.write(f"# 总计: {len(sorted_ips)} 个IP, {len(sorted_domains)} 个域名\n")
         
         f.write("# 优选IP (格式: IP:端口#时间_来源)\n")
         for ip_info in sorted_ips:
             f.write(ip_info + "\n")
         
-        f.write("\n# 优选域名\n")
-        for domain in sorted_domains:
-            f.write(domain + "\n")
+        f.write("\n# 优选域名 (格式: 域名:端口#来源)\n")
+        for domain_info in sorted_domains:
+            f.write(domain_info + "\n")
 
     print(f"\n🎉 完成！共获取 {len(sorted_ips)} 个IP, {len(sorted_domains)} 个域名")
     print(f"💾 结果已保存到 ip.txt")
@@ -201,3 +218,5 @@ if __name__ == "__main__":
     # 显示几个示例
     if sorted_ips:
         print(f"📝 IP格式示例: {sorted_ips[0]}")
+    if sorted_domains:
+        print(f"📝 域名格式示例: {sorted_domains[0]}")
