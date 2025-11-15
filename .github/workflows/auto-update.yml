@@ -2,7 +2,7 @@ name: Auto Update CF IPs
 
 on:
   schedule:
-    - cron: '0 */24 * * *' # 每24小时运行一次（原注释说是3小时，但实际是24小时）
+    - cron: '0 */24 * * *' # 每3小时运行一次
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -11,7 +11,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
-      actions: write  # 添加删除工作流的权限
+      actions: write
     
     steps:
     - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
     - name: Delete old workflow runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        token: ${{ secrets.CLEANUP_TOKEN }}  # 使用 PAT
+        token: ${{ github.token }}
         repository: ${{ github.repository }}
         retain_days: 3
         keep_minimum_runs: 4
@@ -94,4 +94,4 @@ jobs:
           echo "更改已提交并推送"
         else
           echo "没有检测到更改，跳过提交"
-        fi
+        fi 这是我的yaml文件 请帮我修复下
