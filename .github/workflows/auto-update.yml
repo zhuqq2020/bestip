@@ -94,4 +94,4 @@ jobs:
           echo "更改已提交并推送"
         else
           echo "没有检测到更改，跳过提交"
-        fi 这是我的yaml文件 请帮我修复下
+        fi
