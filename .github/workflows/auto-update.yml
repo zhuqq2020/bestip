@@ -2,7 +2,7 @@ name: Auto Update CF IPs
 
 on:
   schedule:
-    - cron: '0 */24 * * *' # 每3小时运行一次
+    - cron: '0 */24 * * *' # 每24小时运行一次（原注释说是3小时，但实际是24小时）
   workflow_dispatch: # 允许手动触发
 
 jobs:
@@ -11,6 +11,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: write  # 添加删除工作流的权限
     
     steps:
     - uses: actions/checkout@v4
@@ -59,7 +60,7 @@ jobs:
     - name: Delete old workflow runs
       uses: Mattraks/delete-workflow-runs@v2
       with:
-        token: ${{ github.token }}
+        token: ${{ secrets.CLEANUP_TOKEN }}  # 使用 PAT
         repository: ${{ github.repository }}
         retain_days: 3
         keep_minimum_runs: 4
