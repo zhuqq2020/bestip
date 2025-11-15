@@ -112,7 +112,8 @@ class CFIPAutomation:
             return True
         
         print("正在打开优选IP网站...")
-        self.driver.get('https://t1.y130.icu/t1/bestip')
+        #self.driver.get('https://t1.y130.icu/t1/bestip')
+        #self.driver.get('https://bestip.badking.pp.ua/')
         time.sleep(5)
         print("网站加载完成")
         return True
@@ -400,6 +401,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
